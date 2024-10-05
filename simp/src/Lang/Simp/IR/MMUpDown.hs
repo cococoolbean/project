@@ -139,7 +139,7 @@ instance Cogen Stmt where
         
         LEndWhile is the next label (w/o incr)
 
-        instrs1 = [LWhile: ifn up_cond goto LEndWhile] 
+        instrs1 = [LWhileCondJ: ifn up_cond goto LEndWhile] 
         instrs2' = instrs2 ++ [ LEndBody: goto LBWhile ]
         --------------------------------------------------------- (While)
         G(while cond {body}) |- down_cond ++ instrs1 ++ instrs2'
