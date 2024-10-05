@@ -1,4 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use lambda-case" #-}
 module Lang.Simp.Syntax.Parser where
 
 
@@ -6,7 +8,6 @@ import Lang.Simp.Syntax.Parsec
 import Lang.Simp.Syntax.SrcLoc
 import Lang.Simp.Syntax.AST ( Const(..), Exp, Var(..), Stmt(..) )
 import Lang.Simp.Syntax.Lexer
-
 
 -- | The `PEnv` datatype defines a parser environment
 newtype PEnv = PEnv {
@@ -132,16 +133,143 @@ pSpaces = many pSpace
 
 -- Lab 1 Task 1.1 end 
 
+
 {-  Lab 1 Task 1.2 
     Parsing an expression
     Note that 
     E ::= E Op E | X | C | (E) contains left recursion
 -}
 
+{- 
+    << Left Recursion Eliminated >>
+    << Grammar >>
+    E  = X E'
+    E  = C E'
+    E  = (E) E'
+    E' = OP E E'
+    E' = Epsilon
+-}
 
--- | the `pExp` function parses an expression
+data ExpLE = VarExp Var ExpLEP
+    | ConstExp Const ExpLEP
+    | ParenExp ExpLE ExpLEP
+    deriving (Show, Eq)
+
+data ExpLEP = Plus ExpLE ExpLEP
+    | Minus ExpLE ExpLEP
+    | Mult ExpLE ExpLEP
+    | DEqual ExpLE ExpLEP
+    | LThan ExpLE ExpLEP
+    | Epsilon 
+    deriving (Show, Eq)
+
+
+-- | The `pExp` function parses an expression
 pExp :: Parser PEnv Exp
-pExp = undefined -- fixme
+pExp = do
+    ele <- pExpLE
+    return (fromExpLE ele)
+
+
+pExpLE :: Parser PEnv ExpLE
+pExpLE = do
+    x  <- pTerm
+    e' <- pExpP
+    return (ExpLE x e')
+
+
+pExpP :: Parser PEnv ExpLEP
+pExpP = do
+    result <- optional pOpExpP
+    case result of 
+        Left _ -> empty
+        Right e -> return e
+
+pOpExpP :: Parser PEnv ExpLEP
+pOpExpP = do
+    op <- pOp 
+    e  <- pExp
+    e' <- pExpP
+    return (ExpLEP e e')
+
+-- | The `pTerm` function parses either a variable (X), constant (C), or a parenthesized expression `(E)`
+pTerm :: Parser PEnv ExpLEP
+pTerm = do
+    result <- optional pX
+    case result of
+        Right x -> return x
+        Left _ -> do
+            resultC <- optional pC
+            case resultC of
+                Right c -> return c
+                Left _ -> pParenExp
+
+pX :: Parser PEnv ExpLE
+pX = do
+    x <- pVariable
+    return (VarExp x Epsilon)
+
+pC :: Parser PEnv ExpLE
+pC = do
+    c <- pConstant
+    return (ConstExp c Epsilon)
+
+pParenExp :: Parser PEnv Exp
+pParenExp = do
+    _ <- pLeftParenTok
+    e <- pExpLE 
+    _ <- pRightParenTok
+    return (ParenExp e)
+
+pLeftParenTok :: Parser PEnv LToken
+pLeftParenTok = sat (\x -> case x of
+    {
+        LParen v  -> True;
+        _         -> False 
+    }) "pLeftParenTok failed, expecting '('."
+
+pRightParenTok :: Parser PEnv LToken
+pRightParenTok = sat (\x -> case x of
+    {
+        RParen v  -> True;
+        _         -> False 
+    }) "pRightParenTok failed, expecting ')'."
+
+pVariable :: Parser PEnv Exp
+pVariable = do
+    x <- pVar
+    return (VarExp x) 
+
+pConstant :: Parser PEnv Exp
+pConstant = do
+    c <- pConst
+    return (ConstExp c)
+
+pOp :: Parser PEnv Exp
+pOp = sat (\x -> case x of
+    PlusSign v      -> True
+    MinusSign v     -> True
+    AsterixSign v   -> True
+    _               -> False
+    )
+
+
+-- fromExpLE :: ExpLE -> Exp
+-- fromExpLE (VarExp var expLEP)     = fromExpLEP (VarExp var) expLEP  
+-- fromExpLE (ConstExp const expLEP) = fromExpLEP (ConstExp const) expLEP 
+-- fromExpLE (ParenExp expLE expLEP) = fromExpLEP (ParenExp (fromExpLE expLEP)) expLEP
+
+
+-- fromExpLEP :: ExpLE -> ExpLEP -> ExpLE
+-- fromExpLEP exp Epsilon          = exp  -- No more expression, return the current expression
+-- fromExpLEP exp (Plus e eP)      = fromExpLEP (Plus exp e) eP     -- '+'
+-- fromExpLEP exp (Minus e eP)     = fromExpLEP (Minus exp e) eP    -- '-'
+-- fromExpLEP exp (Mult e eP)      = fromExpLEP (Mult exp e) eP     -- '*'
+-- fromExpLEP exp (DEqual e eP)    = fromExpLEP (DEqual exp e) eP   -- '=='
+-- fromExpLEP exp (LThan e eP)     = fromExpLEP (LThan exp e) eP    -- '<'
+
+
+
 -- Lab 1 Task 1.2 end 
 
 
