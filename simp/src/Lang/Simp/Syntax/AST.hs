@@ -25,6 +25,7 @@ data Exp = Plus Exp Exp -- ^ The constructor for a plus expression e1 + e2
     | ConstExp Const    -- ^ The constructor for a constant expression, e.g. 1, True 
     | VarExp Var        -- ^ The constructor for a variable expression, e.g. x, foo 
     | ParenExp Exp      -- ^ The constructor for a parenthese expression, ( e )
+    | Epsilon           -- For epsilon
     deriving (Show, Eq)
 
 -- | The Constant data type 

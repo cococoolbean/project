@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use lambda-case" #-}
+{-# HLINT ignore "Use <$>" #-}
 module Lang.Simp.Syntax.Parser where
 
 
@@ -153,122 +154,104 @@ pSpaces = many pSpace
 data ExpLE = VarExp Var ExpLEP
     | ConstExp Const ExpLEP
     | ParenExp ExpLE ExpLEP
-    deriving (Show, Eq)
 
 data ExpLEP = Plus ExpLE ExpLEP
     | Minus ExpLE ExpLEP
     | Mult ExpLE ExpLEP
     | DEqual ExpLE ExpLEP
     | LThan ExpLE ExpLEP
-    | Epsilon 
-    deriving (Show, Eq)
-
-
--- | The `pExp` function parses an expression
-pExp :: Parser PEnv Exp
-pExp = do
-    ele <- pExpLE
-    return (fromExpLE ele)
-
+    | Epsilon
 
 pExpLE :: Parser PEnv ExpLE
 pExpLE = do
-    x  <- pTerm
-    e' <- pExpP
-    return (ExpLE x e')
+    resultC <- optional pC
+    case resultC of                     -- Parse constant
+        Right c -> do
+            rest <- pExpLEP
+            return (ConstExp c rest)
+        Left _  -> do 
+            resultX <- optional pX      -- Parse variable
+            case resultX of
+                Right x -> do 
+                    rest <- pExpLEP
+                    return (VarExp x rest)
+                Left _ -> do            -- Parse parenthesis
+                    parenExp <- pParen
+                    rest  <- pExpLEP
+                    return (ParenExp parenExp rest)
 
 
-pExpP :: Parser PEnv ExpLEP
-pExpP = do
-    result <- optional pOpExpP
-    case result of 
-        Left _ -> empty
-        Right e -> return e
+pExpLEP :: Parser PEnv ExpLEP
+pExpLEP = do 
+    resultOp <- optional pOp 
+    case resultOp of 
+        Right op -> do 
+            return op
+        Left _  -> return Epsilon
 
-pOpExpP :: Parser PEnv ExpLEP
-pOpExpP = do
-    op <- pOp 
-    e  <- pExp
-    e' <- pExpP
-    return (ExpLEP e e')
-
--- | The `pTerm` function parses either a variable (X), constant (C), or a parenthesized expression `(E)`
-pTerm :: Parser PEnv ExpLEP
-pTerm = do
-    result <- optional pX
-    case result of
-        Right x -> return x
-        Left _ -> do
-            resultC <- optional pC
-            case resultC of
-                Right c -> return c
-                Left _ -> pParenExp
-
-pX :: Parser PEnv ExpLE
-pX = do
-    x <- pVariable
-    return (VarExp x Epsilon)
-
-pC :: Parser PEnv ExpLE
+pC :: Parser PEnv Const
 pC = do
-    c <- pConstant
-    return (ConstExp c Epsilon)
-
-pParenExp :: Parser PEnv Exp
-pParenExp = do
-    _ <- pLeftParenTok
-    e <- pExpLE 
-    _ <- pRightParenTok
-    return (ParenExp e)
-
-pLeftParenTok :: Parser PEnv LToken
-pLeftParenTok = sat (\x -> case x of
-    {
-        LParen v  -> True;
-        _         -> False 
-    }) "pLeftParenTok failed, expecting '('."
-
-pRightParenTok :: Parser PEnv LToken
-pRightParenTok = sat (\x -> case x of
-    {
-        RParen v  -> True;
-        _         -> False 
-    }) "pRightParenTok failed, expecting ')'."
-
-pVariable :: Parser PEnv Exp
-pVariable = do
-    x <- pVar
-    return (VarExp x) 
-
-pConstant :: Parser PEnv Exp
-pConstant = do
     c <- pConst
-    return (ConstExp c)
+    return c
 
-pOp :: Parser PEnv Exp
-pOp = sat (\x -> case x of
-    PlusSign v      -> True
-    MinusSign v     -> True
-    AsterixSign v   -> True
-    _               -> False
-    )
+pX :: Parser PEnv Var
+pX = do
+    x <- pVar
+    return x
+
+pParen :: Parser PEnv ExpLE
+pParen = do
+    lParen <- pLParen
+    e <- pExpLE
+    rParen <- pRParen
+    return e
+
+pOp :: Parser PEnv ExpLEP
+pOp = do
+    resultPlus <- optional pPlus
+    case resultPlus of                      -- "+"
+        Right resultPlus -> do
+            exp  <- pExpLE
+            expP <- pExpLEP
+            return (Plus exp expP)
+        Left _ -> do
+            resultMinus <- optional pMinus  -- "-"
+            case resultMinus of 
+                Right resultMinus -> do
+                    exp  <- pExpLE
+                    expP <- pExpLEP
+                    return (Minus exp expP)
+                Left _ -> do 
+                    resultMult <- optional pMult --"*"
+                    case resultMult of 
+                        Right resultMult -> do
+                            exp  <- pExpLE
+                            expP <- pExpLEP
+                            return (Mult exp expP)
+                        Left _ -> do 
+                            resultDeq <- optional pDEqual -- "=="
+                            case resultDeq of 
+                                Right resultDeq -> do
+                                    exp <- pExpLE
+                                    expP <- pExpLEP
+                                    return (DEqual exp expP)
+                                Left _ -> do
+                                    resultLThan <- optional pLThan  -- "<"
+                                    case resultLThan of 
+                                        Right resultLThan -> do 
+                                            exp  <- pExpLE
+                                            expP <- pExpLEP
+                                            return (LThan exp expP)
+                                        Left _ -> return Epsilon
+
+fromExpLE :: ExpLE -> Exp
+fromExpLe = --todo
+
+fromExpLEP :: Exp -> ExpLEP -> Exp
+fromExpLEP = --todo
 
 
--- fromExpLE :: ExpLE -> Exp
--- fromExpLE (VarExp var expLEP)     = fromExpLEP (VarExp var) expLEP  
--- fromExpLE (ConstExp const expLEP) = fromExpLEP (ConstExp const) expLEP 
--- fromExpLE (ParenExp expLE expLEP) = fromExpLEP (ParenExp (fromExpLE expLEP)) expLEP
-
-
--- fromExpLEP :: ExpLE -> ExpLEP -> ExpLE
--- fromExpLEP exp Epsilon          = exp  -- No more expression, return the current expression
--- fromExpLEP exp (Plus e eP)      = fromExpLEP (Plus exp e) eP     -- '+'
--- fromExpLEP exp (Minus e eP)     = fromExpLEP (Minus exp e) eP    -- '-'
--- fromExpLEP exp (Mult e eP)      = fromExpLEP (Mult exp e) eP     -- '*'
--- fromExpLEP exp (DEqual e eP)    = fromExpLEP (DEqual exp e) eP   -- '=='
--- fromExpLEP exp (LThan e eP)     = fromExpLEP (LThan exp e) eP    -- '<'
-
-
+--------------------------
 
 -- Lab 1 Task 1.2 end 
 
