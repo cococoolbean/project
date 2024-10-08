@@ -7,7 +7,7 @@ module Lang.Simp.Syntax.Parser where
 
 import Lang.Simp.Syntax.Parsec
 import Lang.Simp.Syntax.SrcLoc
-import Lang.Simp.Syntax.AST ( Const(..), Exp, Var(..), Stmt(..) )
+import Lang.Simp.Syntax.AST ( Const(..), Exp(..), Var(..), Stmt(..) )
 import Lang.Simp.Syntax.Lexer
 
 -- | The `PEnv` datatype defines a parser environment
@@ -135,32 +135,37 @@ pSpaces = many pSpace
 -- Lab 1 Task 1.1 end 
 
 
-{-  Lab 1 Task 1.2 
-    Parsing an expression
-    Note that 
-    E ::= E Op E | X | C | (E) contains left recursion
--}
+-- Lab 1 Task 1.2 
+--     Parsing an expression
+--     Note that 
+--     E ::= E Op E | X | C | (E) contains left recursion
 
-{- 
-    << Left Recursion Eliminated >>
-    << Grammar >>
-    E  = X E'
-    E  = C E'
-    E  = (E) E'
-    E' = OP E E'
-    E' = Epsilon
--}
 
-data ExpLE = VarExp Var ExpLEP
-    | ConstExp Const ExpLEP
-    | ParenExp ExpLE ExpLEP
+--     << Left Recursion Eliminated >>
+--     << Grammar >>
+--     E  = X E'
+--     E  = C E'
+--     E  = (E) E'
+--     E' = OP E E'
+--     E' = Epsilon
 
-data ExpLEP = Plus ExpLE ExpLEP
-    | Minus ExpLE ExpLEP
-    | Mult ExpLE ExpLEP
-    | DEqual ExpLE ExpLEP
-    | LThan ExpLE ExpLEP
+
+data ExpLE = VarExpLE Var ExpLEP
+    | ConstExpLE Const ExpLEP
+    | ParenExpLE ExpLE ExpLEP
+
+data ExpLEP = PlusLE ExpLE ExpLEP
+    | MinusLE ExpLE ExpLEP
+    | MultLE ExpLE ExpLEP
+    | DEqualLE ExpLE ExpLEP
+    | LThanLE ExpLE ExpLEP
     | Epsilon
+
+pExp :: Parser PEnv Exp
+pExp = do
+    exple <- pExpLE
+    return (fromExpLE exple)
+
 
 pExpLE :: Parser PEnv ExpLE
 pExpLE = do
@@ -168,17 +173,17 @@ pExpLE = do
     case resultC of                     -- Parse constant
         Right c -> do
             rest <- pExpLEP
-            return (ConstExp c rest)
+            return (ConstExpLE c rest)
         Left _  -> do 
             resultX <- optional pX      -- Parse variable
             case resultX of
                 Right x -> do 
                     rest <- pExpLEP
-                    return (VarExp x rest)
+                    return (VarExpLE x rest)
                 Left _ -> do            -- Parse parenthesis
                     parenExp <- pParen
                     rest  <- pExpLEP
-                    return (ParenExp parenExp rest)
+                    return (ParenExpLE parenExp rest)
 
 
 pExpLEP :: Parser PEnv ExpLEP
@@ -213,42 +218,56 @@ pOp = do
         Right resultPlus -> do
             exp  <- pExpLE
             expP <- pExpLEP
-            return (Plus exp expP)
+            return (PlusLE exp expP)
         Left _ -> do
             resultMinus <- optional pMinus  -- "-"
             case resultMinus of 
                 Right resultMinus -> do
                     exp  <- pExpLE
                     expP <- pExpLEP
-                    return (Minus exp expP)
+                    return (MinusLE exp expP)
                 Left _ -> do 
                     resultMult <- optional pMult --"*"
                     case resultMult of 
                         Right resultMult -> do
                             exp  <- pExpLE
                             expP <- pExpLEP
-                            return (Mult exp expP)
+                            return (MultLE exp expP)
                         Left _ -> do 
                             resultDeq <- optional pDEqual -- "=="
                             case resultDeq of 
                                 Right resultDeq -> do
                                     exp <- pExpLE
                                     expP <- pExpLEP
-                                    return (DEqual exp expP)
+                                    return (DEqualLE exp expP)
                                 Left _ -> do
                                     resultLThan <- optional pLThan  -- "<"
                                     case resultLThan of 
                                         Right resultLThan -> do 
                                             exp  <- pExpLE
                                             expP <- pExpLEP
-                                            return (LThan exp expP)
+                                            return (LThanLE exp expP)
                                         Left _ -> return Epsilon
 
 fromExpLE :: ExpLE -> Exp
-fromExpLe = --todo
+fromExpLE (VarExpLE x expP) = fromExpLEP (VarExp x) expP 
+fromExpLE (ConstExpLE c expP) = fromExpLEP (ConstExp c) expP
+fromExpLE (ParenExpLE e expP) = fromExpLEP (ParenExp (fromExpLE e)) expP
 
 fromExpLEP :: Exp -> ExpLEP -> Exp
-fromExpLEP = --todo
+fromExpLEP exp (PlusLE exp2 expP) = fromExpLEP (Plus exp (fromExpLE exp2)) expP
+fromExpLEP exp (MinusLE exp2 expP) = fromExpLEP (Minus exp (fromExpLE exp2)) expP
+fromExpLEP exp (MultLE exp2 expP) = fromExpLEP (Mult exp (fromExpLE exp2)) expP
+fromExpLEP exp (DEqualLE exp2 expP) = fromExpLEP (DEqual exp (fromExpLE exp2)) expP
+fromExpLEP exp (LThanLE exp2 expP) = fromExpLEP (LThan exp (fromExpLE exp2)) expP
+fromExpLEP exp Epsilon = exp
+
+    
+    -- | Minus ExpLE ExpLEP
+    -- | Mult ExpLE ExpLEP
+    -- | DEqual ExpLE ExpLEP
+    -- | LThan ExpLE ExpLEP
+    -- | Epsilon 
 
 
 --------------------------
@@ -407,8 +426,7 @@ pRParen = sat (\tok -> case tok of
     }) "expecting a ) but none is found."
 
 
-
-
+pSemiColon :: Parser PEnv LToken
 pSemiColon = sat (\tok -> case tok of
     { SemiColon src -> True
     ; _ -> False

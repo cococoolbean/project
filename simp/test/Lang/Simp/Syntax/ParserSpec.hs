@@ -75,6 +75,7 @@ spec = do
                             IntTok (SrcLoc 1 15) 2, RParen (SrcLoc 1 16), RParen (SrcLoc 1 17)] 
                 expected = Minus (VarExp (Var "x")) (ParenExp (Plus (ConstExp (IntConst 1)) (ParenExp (Mult (VarExp (Var "y")) (ConstExp (IntConst 2))))))
                 penv = PEnv input
+
             in case run pExp penv of 
                 { Consumed (Ok (exp, penv)) | done penv -> exp `shouldBe` expected
                                             | otherwise -> expectationFailure "parsing failed, the remaining token stream is not empty."
