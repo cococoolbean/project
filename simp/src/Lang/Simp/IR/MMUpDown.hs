@@ -175,7 +175,19 @@ instance Cogen Stmt where
         G(while cond {body}) |- down_cond ++ instrs1 ++ instrs2'
         
 -}
-        ; While cond body -> undefined -- fixme
-        }
+        ; While cond body -> do
+            lblWhile         <- chkNextLabel
+            (cond_u, cond_d) <- cogenExp cond
+            lblWhileCond     <- newLabel
+            
+            instrs2          <- cogen body
+            lblEndBody       <- newLabel
+
+            lblWhileEnd      <- chkNextLabel
+
+            let instrs1  = [(lblWhileCond, IIfNot cond_u lblWhileEnd)] 
+                instrs2'    = instrs2 ++ [(lblEndBody, IGoto lblWhile)] 
+            return $ cond_d ++ instrs1 ++ instrs2' 
+        }       
 -- Lab 1 Task 2.2 end
         
