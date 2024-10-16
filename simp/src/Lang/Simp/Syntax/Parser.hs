@@ -149,6 +149,13 @@ pSpaces = many pSpace
 --     E' = OP E E'
 --     E' = Epsilon
 
+-- Helper function to parse a token and skip spaces after it
+tokenWithSpaces :: Parser PEnv a -> Parser PEnv a
+tokenWithSpaces p = do
+    result <- p
+    _ <- pSpaces
+    return result
+
 
 data ExpLE = VarExpLE Var ExpLEP
     | ConstExpLE Const ExpLEP
@@ -159,97 +166,81 @@ data ExpLEP = PlusLE ExpLE ExpLEP
     | MultLE ExpLE ExpLEP
     | DEqualLE ExpLE ExpLEP
     | LThanLE ExpLE ExpLEP
-    | Epsilon
+    | NIL
 
 pExp :: Parser PEnv Exp
 pExp = do
     exple <- pExpLE
     return (fromExpLE exple)
 
-
 pExpLE :: Parser PEnv ExpLE
-pExpLE = do
-    resultC <- optional pC
-    case resultC of                     -- Parse constant
-        Right c -> do
-            rest <- pExpLEP
-            return (ConstExpLE c rest)
-        Left _  -> do 
-            resultX <- optional pX      -- Parse variable
-            case resultX of
-                Right x -> do 
-                    rest <- pExpLEP
-                    return (VarExpLE x rest)
-                Left _ -> do            -- Parse parenthesis
-                    parenExp <- pParen
-                    rest  <- pExpLEP
-                    return (ParenExpLE parenExp rest)
+pExpLE = choice pVarExpLE (choice pConstExpLE pParenExpLE)
 
+pVarExpLE :: Parser PEnv ExpLE
+pVarExpLE = do
+    var <- tokenWithSpaces pVar
+    e'  <- pExpLEP
+    return (VarExpLE var e')
+
+pConstExpLE :: Parser PEnv ExpLE
+pConstExpLE = do 
+    c  <- tokenWithSpaces pConst
+    e' <- pExpLEP
+    return (ConstExpLE c e')
+
+pParenExpLE :: Parser PEnv ExpLE
+pParenExpLE = do
+    _  <- tokenWithSpaces pLParen
+    e  <- pExpLE
+    _  <- tokenWithSpaces pRParen
+    e' <- pExpLEP
+    return (ParenExpLE e e')
 
 pExpLEP :: Parser PEnv ExpLEP
-pExpLEP = do 
-    resultOp <- optional pOp 
-    case resultOp of 
-        Right op -> do 
-            return op
-        Left _  -> return Epsilon
+pExpLEP = choice pPlusLE (
+    choice pMinusLE (
+        choice pMultLE (
+            choice pDEqualLE (
+                choice pLThanLE pNIL))))
 
-pC :: Parser PEnv Const
-pC = do
-    c <- pConst
-    return c
-
-pX :: Parser PEnv Var
-pX = do
-    x <- pVar
-    return x
-
-pParen :: Parser PEnv ExpLE
-pParen = do
-    lParen <- pLParen
+pPlusLE :: Parser PEnv ExpLEP
+pPlusLE = do 
+    _ <- tokenWithSpaces pPlus
     e <- pExpLE
-    rParen <- pRParen
-    return e
+    e' <- pExpLEP
+    return (PlusLE e e')
 
-pOp :: Parser PEnv ExpLEP
-pOp = do
-    resultPlus <- optional pPlus
-    case resultPlus of                      -- "+"
-        Right resultPlus -> do
-            exp  <- pExpLE
-            expP <- pExpLEP
-            return (PlusLE exp expP)
-        Left _ -> do
-            resultMinus <- optional pMinus  -- "-"
-            case resultMinus of 
-                Right resultMinus -> do
-                    exp  <- pExpLE
-                    expP <- pExpLEP
-                    return (MinusLE exp expP)
-                Left _ -> do 
-                    resultMult <- optional pMult --"*"
-                    case resultMult of 
-                        Right resultMult -> do
-                            exp  <- pExpLE
-                            expP <- pExpLEP
-                            return (MultLE exp expP)
-                        Left _ -> do 
-                            resultDeq <- optional pDEqual -- "=="
-                            case resultDeq of 
-                                Right resultDeq -> do
-                                    exp <- pExpLE
-                                    expP <- pExpLEP
-                                    return (DEqualLE exp expP)
-                                Left _ -> do
-                                    resultLThan <- optional pLThan  -- "<"
-                                    case resultLThan of 
-                                        Right resultLThan -> do 
-                                            exp  <- pExpLE
-                                            expP <- pExpLEP
-                                            return (LThanLE exp expP)
-                                        Left _ -> return Epsilon
+pMinusLE :: Parser PEnv ExpLEP
+pMinusLE = do
+    _  <- tokenWithSpaces pMinus
+    e  <- pExpLE
+    e' <- pExpLEP
+    return (MinusLE e e')
 
-fromExpLE :: ExpLE -> Exp
+pMultLE :: Parser PEnv ExpLEP
+pMultLE = do 
+    _  <- tokenWithSpaces pMult
+    e  <- pExpLE
+    e' <- pExpLEP
+    return (MultLE e e')
+
+pDEqualLE :: Parser PEnv ExpLEP
+pDEqualLE = do
+    _  <- tokenWithSpaces pDEqual
+    e  <- pExpLE
+    e' <- pExpLEP
+    return (DEqualLE e e')
+
+pLThanLE :: Parser PEnv ExpLEP
+pLThanLE = do
+    _  <- tokenWithSpaces pLThan
+    e  <- pExpLE
+    e' <- pExpLEP
+    return (LThanLE e e')
+
+pNIL :: Parser PEnv ExpLEP
+pNIL = empty NIL
+
 fromExpLE (VarExpLE x expP) = fromExpLEP (VarExp x) expP 
 fromExpLE (ConstExpLE c expP) = fromExpLEP (ConstExp c) expP
 fromExpLE (ParenExpLE e expP) = fromExpLEP (ParenExp (fromExpLE e)) expP
@@ -260,14 +251,7 @@ fromExpLEP exp (MinusLE exp2 expP) = fromExpLEP (Minus exp (fromExpLE exp2)) exp
 fromExpLEP exp (MultLE exp2 expP) = fromExpLEP (Mult exp (fromExpLE exp2)) expP
 fromExpLEP exp (DEqualLE exp2 expP) = fromExpLEP (DEqual exp (fromExpLE exp2)) expP
 fromExpLEP exp (LThanLE exp2 expP) = fromExpLEP (LThan exp (fromExpLE exp2)) expP
-fromExpLEP exp Epsilon = exp
-
-    
-    -- | Minus ExpLE ExpLEP
-    -- | Mult ExpLE ExpLEP
-    -- | DEqual ExpLE ExpLEP
-    -- | LThan ExpLE ExpLEP
-    -- | Epsilon 
+fromExpLEP exp NIL = exp
 
 
 --------------------------
