@@ -36,11 +36,41 @@ L is a fresh label
 --------------------------------------------------------------------- (Op)
 GE(e1 op e2) |- (X, down_e1 ++ down_e2 ++ [L:X <- up_e1 op up_e2])
 -}
-cogenExp (Plus e1 e2)   = undefined -- fixme
-cogenExp (Minus e1 e2)  = undefined -- fixme
-cogenExp (Mult e1 e2)   = undefined -- fixme
-cogenExp (DEqual e1 e2) = undefined -- fixme
-cogenExp (LThan e1 e2)  = undefined -- fixme
+cogenExp (Plus e1 e2)   = do 
+    (e1up, e1down) <- cogenExp e1
+    (e2up, e2down) <- cogenExp e2
+    t   <- newTemp
+    l   <- newLabel
+    return (t, e1down ++ e2down ++ [(l, IPlus t e1up e2up)])
+
+
+cogenExp (Minus e1 e2)  = do
+    (e1up, e1down) <- cogenExp e1
+    (e2up, e2down) <- cogenExp e2
+    t   <- newTemp
+    l   <- newLabel
+    return (t, e1down ++ e2down ++ [(l, IMinus t e1up e2up)])
+
+cogenExp (Mult e1 e2)   = do
+    (e1up, e1down) <- cogenExp e1
+    (e2up, e2down) <- cogenExp e2
+    t   <- newTemp
+    l   <- newLabel
+    return (t, e1down ++ e2down ++ [(l, IMult t e1up e2up)])
+
+cogenExp (DEqual e1 e2) = do
+    (e1up, e1down) <- cogenExp e1
+    (e2up, e2down) <- cogenExp e2
+    t   <- newTemp
+    l   <- newLabel
+    return (t, e1down ++ e2down ++ [(l, IDEqual t e1up e2up)])
+
+cogenExp (LThan e1 e2)  = do
+    (e1up, e1down) <- cogenExp e1
+    (e2up, e2down) <- cogenExp e2
+    t   <- newTemp
+    l   <- newLabel
+    return (t, e1down ++ e2down ++ [(l, ILThan t e1up e2up)])
 -- Lab 1 Task 2.1 end
 
 
