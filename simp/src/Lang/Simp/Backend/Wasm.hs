@@ -38,11 +38,11 @@ Operattional Semantics   (\Delta, S , wis, B) --> (\Delta', S', wis', B')
 
 (tee)??
 
-(set1)          (\Delta, _, _, set n; wis, B) --> (\Delta, \Delta(n), _, wis, B)
+(get1)          (\Delta, _, _, get n; wis, B) --> (\Delta, \Delta(n), _, wis, B)
 
-(set2)          (\Delta, c, _, set n; wis, B) --> (\Delta, c, \Delta(n), wis, B)
+(get2)          (\Delta, c, _, get n; wis, B) --> (\Delta, c, \Delta(n), wis, B)
 
-(get)           (\Delta, c, _, get n; wis; B) --> (\Delta \oplus (n,c), _, _, wis, B)
+(set)           (\Delta, c, _, set n; wis; B) --> (\Delta \oplus (n,c), _, _, wis, B)
 
 (const1)        (\Delta, _, _, const c; wis, B) --> (\Delta, c, _, wis, B)
 
@@ -142,7 +142,7 @@ convertInstr m (li:lis) = case li of
     {-
             M |-_{src} s => wis1    
     (wReturn)-------------------------------------------
-            M |- l : rret <- s; l2: ret; => [wis1] + [ get M(t)] + wis2
+            M |- l : rret <- s; l2: ret; => [wis1] + [return]
      in fold form
             M |-_{src} s => wis1     
     (wReturn)-------------------------------------------
@@ -154,7 +154,7 @@ convertInstr m (li:lis) = case li of
     {-
             M |-_{src} s => wis1     M |- lis => wis2
     (wMove)-------------------------------------------
-            M |- l : t <- s; lis => [wis1] + [ get M(t)] + wis2
+            M |- l : t <- s; lis => [wis1] + [ set M(t)] + wis2
      in fold form
             M |-_{src} s => wis1     M |- lis => wis2
     (wMove)-------------------------------------------
@@ -313,7 +313,7 @@ convertInstr m (li:lis) = case li of
             M |- lis' => wis3        
             head(lis') is not a ifn instruction.
     (wPlus) -----------------------------------------------------------
-            M |- l: t <- s1 + s2; lis' =>  wis1 + wis2 + [ add, get M(t) ] + wis3
+            M |- l: t <- s1 + s2; lis' =>  wis1 + wis2 + [ add, set M(t) ] + wis3
     
     in fold form       
             M |-_{src} s1 => wis1    M |-_{src} s2 => wis2  
@@ -331,7 +331,7 @@ convertInstr m (li:lis) = case li of
             M |- lis' => wis3        
             head(lis') is not a ifn instruction.
     (wMinus) -----------------------------------------------------------
-            M |- l: t <- s1 - s2; lis' =>  wis1 + wis2 + [ sub, get M(t) ] + wis3
+            M |- l: t <- s1 - s2; lis' =>  wis1 + wis2 + [ sub, set M(t) ] + wis3
     
     in fold form       
             M |-_{src} s1 => wis1    M |-_{src} s2 => wis2  
@@ -350,7 +350,7 @@ convertInstr m (li:lis) = case li of
             M |- lis' => wis3        
             head(lis') is not a ifn instruction.
     (wMult) -----------------------------------------------------------
-            M |- l: t <- s1 * s2; lis' =>  wis1 + wis2 + [ mul, get M(t) ] + wis3
+            M |- l: t <- s1 * s2; lis' =>  wis1 + wis2 + [ mul, set M(t) ] + wis3
     
     in fold form       
             M |-_{src} s1 => wis1    M |-_{src} s2 => wis2  
@@ -386,15 +386,17 @@ splitAtLbl lbl = Prelude.span (\(l,i) -> l /= lbl)
 -- | convert a source operand into a sequence of wasm instructions
 -- |  that read the value of the source operand and insert it into the value stack
 -- it is going through the GenFun monad because it generate codes that updates the value stack 
+-- M |-_{src} s
 convertSrcOpr ::  M -> Opr -> GenFun (Proxy I32)
 --  M |-_{src} c => const c 
 convertSrcOpr m (IntLit c) = i32c c
---  M |-_{src} t => set M(t)
+--  M |-_{src} t => get M(t)
 convertSrcOpr m (Temp (AVar n)) = produce (m DM.! n)
 convertSrcOpr m (Regstr n) = error $ "convertSrcOpr failed: register " ++ n ++ " should not appear as an operands in Pseudo Assembly."
 
 
 -- | convert a destination PA operand into a Wasm local variable 
+-- | M(t)
 convertDstOpr :: M -> Opr -> Loc I32
 convertDstOpr m (Temp (AVar t)) = m DM.! t
 convertDstOpr m (Regstr n) = error $ "convertDstOpr failed: register " ++ n ++ " should not appear as an operands in Pseudo Assembly."
