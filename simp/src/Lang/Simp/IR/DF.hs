@@ -11,7 +11,7 @@ import Lang.Simp.IR.PseudoAssembly
 
 
 {-
-   This module contains the implementation of dominator tree, and dominance  frontier utils
+   This module contains the implementation of dominator tree, and dominance frontier utils
     1. dominator tree
     2. construct a dominator tree from a CFG (generated from a PA program)
     3. construct a dominance frontier table
@@ -138,8 +138,25 @@ inOrderTrav (Node v children) = v : concatMap inOrderTrav children
 
 -- | df local implementation from cytron's lemma 2
 -- | Lab 3 Task 1.1 TODO 
+dom :: Label -> Label -> DomTree -> Bool
+dom x y dt = y `elem` descendantsOf x dt
+
+descendantsOf :: Label -> DomTree -> [Label]
+descendantsOf x (Node l children)
+    | l == x    = concatMap allLabels children
+    | otherwise = concatMap (descendantsOf x) children
+    where
+        allLabels (Node m subChildren) = m : concatMap allLabels subChildren
+        allLabels Empty                = []
+descendantsOf _ Empty = []
+
+-- Check if y is strictly dominated by x in DomTree
+isStrictlyDominated :: Label -> Label -> DomTree -> Bool
+isStrictlyDominated y x dt = y `elem` (descendantsOf x dt)
+
 dfLocal :: Label -> DomTree -> CFG -> [Label]
-dfLocal = undefined -- fixme
+dfLocal x dt g =
+    [y | y <- successors g x, not (isStrictlyDominated y x dt)]
 
 -- | Build Dominance frontier table
 buildDFT :: DomTree -> CFG -> DFTable
@@ -150,7 +167,7 @@ buildDFT dt g = foldl go DM.empty (postOrderTrav dt)
             let local  = dfLocal x dt g
                 -- Lab 3 Task 1.1. TODO
                 dfUp :: Label -> [Label]
-                dfUp = undefined -- fixme
+                dfUp u = filter (`notElem` descendantsOf x dt) (DM.findWithDefault [] u acc)
                 up     = concatMap dfUp (childOf x dt)
             in  DM.insert x (sort (local ++ up)) acc
 -- Lab 3 Task 1.1 end 
