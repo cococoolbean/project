@@ -99,10 +99,24 @@ instance Infer Stmt where
             (exTy, k) -> DS.insert (alphax, exTy) k
     infer (Ret x)           = DS.empty 
     -- Lab 2 Task 2.3
-    infer (While cond b)    = undefined -- fixme 
-    infer (If cond th el)   = undefined -- fixme
+    -- While condition
+    infer (While condition body) = 
+        let 
+            (condType, condConstrs) = inferExp condition
+            condBoolConstraint = DS.singleton (condType, MonoType BoolTy) -- Create an entry of set
+            bodyConstrs = infer body
+        in 
+            DS.union condBoolConstraint (DS.union condConstrs bodyConstrs)
+    -- If condition
+    infer (If condition thenBranch elseBranch) = 
+        let 
+            (condType, condConstrs) = inferExp condition
+            condBoolConstraint = DS.singleton (condType, MonoType BoolTy)
+            thenBranchConstrs = infer thenBranch
+            elseBranchConstrs = infer elseBranch
+        in 
+            DS.union condBoolConstraint (DS.union condConstrs (DS.union thenBranchConstrs elseBranchConstrs))
     -- Lab 2 Task 2.3 end 
-
 
 
 inferExp :: Exp -> (ExType, TypeConstrs)
