@@ -149,13 +149,23 @@ class Unifiable a where
 -- | unify two extypes 
 -- Lab 2 Task 2.2 
 instance Unifiable (ExType,ExType) where
-    mgu (exTy1, exTy2) = Left ("error: unable to unify " ++ show exTy1 ++ " with " ++ show exTy2) -- fixme
-
+    mgu :: (ExType, ExType) -> Either String TypeSubst
+    mgu (MonoType IntTy, MonoType IntTy)   = Right Empty
+    mgu (MonoType BoolTy, MonoType BoolTy) = Right Empty
+    mgu (TypeVar s, exTy)                  = Right (singleton s exTy)
+    mgu (exTy, TypeVar s)                  = Right (singleton s exTy)
+    mgu (exTy1, exTy2) = Left ("error: unable to unify " ++ show exTy1 ++ " with " ++ show exTy2)
 
 -- | unifying a list of unifaibles
 instance (Unifiable a, Substitutable a) => Unifiable [a] where
+    mgu :: (Unifiable a, Substitutable a) => [a] -> Either String TypeSubst
     mgu []      = Right Empty 
-    mgu (x:xs)  = undefined -- fixme 
+    mgu (x:xs) = do
+        psi1 <- mgu x
+        let xs' = map (applySubst psi1) xs
+        psi2 <- mgu xs'
+        -- Compose Ψ2 with Ψ1
+        return (compose psi2 psi1)
 -- Lab 2 Task 2.2 end
 
 
