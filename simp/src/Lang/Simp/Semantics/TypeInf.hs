@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 module Lang.Simp.Semantics.TypeInf where 
 
 import qualified Data.Map as DM
@@ -60,7 +61,16 @@ class Substitutable a where
 -- | apply type subst to an extended type
 -- Lab 2 Task 2.1
 instance Substitutable ExType where
-    applySubst = undefined  -- fixme
+    applySubst :: TypeSubst -> ExType -> ExType
+    applySubst Empty t = t
+    applySubst (RevComp (alp1, t1) Empty) (MonoType t2) = MonoType t2
+    applySubst (RevComp (alp1, t) Empty) (TypeVar alp2) 
+        | alp1 == alp2 = t
+        | otherwise    = TypeVar alp2
+    applySubst (RevComp (alp1, t) psi) ty =
+        let ty'  = applySubst (RevComp (alp1, t) Empty) ty in
+        applySubst psi ty' 
+        
 -- Lab 2 Task 2.1 end
 
 instance (Substitutable a, Substitutable b) => Substitutable (a,b) where
