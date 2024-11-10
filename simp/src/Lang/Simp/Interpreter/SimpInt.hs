@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Lang.Simp.Interpreter.SimpInt where
 
 import Prelude hiding (lookup)
@@ -8,7 +9,7 @@ import Lang.Simp.Syntax.AST
 
 -- | the Simp program interpretor by implementing the big step operational semantics
 
--- | the variable environment
+-- | the variable environment [(Var, Const)]
 type Delta = DM.Map Var Const
 
 type ErrMsg = String
@@ -38,8 +39,13 @@ evalExp dlt (Plus e1 e2)    = do
     c2 <- evalExp dlt e2
     plusConst c1 c2
 -- Lab 2 Task 1.1 
-evalExp dlt (VarExp v)      = undefined -- fixme
-evalExp dlt (ParenExp e)    = undefined -- fixme
+evalExp dlt (VarExp v)      = do
+    case DM.lookup v dlt of
+        Just c  -> return c
+        Nothing -> Left ("Variable " ++ show v ++ " not found in the environment")
+
+evalExp dlt (ParenExp e)    = do
+    evalExp dlt e
 -- Lab 2 Task 1.1 end
 
 
@@ -49,14 +55,20 @@ class Evaluable a where
     eval :: Delta -> a -> Either ErrMsg Delta
 
 
+-- List of statements: [a]
 instance Evaluable a => Evaluable [a] where
+    eval :: Evaluable a => Delta -> [a] -> Either ErrMsg Delta
     eval dlt [] = Right dlt
     -- Lab 2 Task 1.2 
-    eval dlt (x:xs) = undefined -- fixme 
+    eval dlt (x:xs) = do
+        case eval dlt x of 
+            Right dlt' -> eval dlt' xs
+            Left err   -> Left err
     -- Lab 2 Task 1.2 end
 
 
 instance Evaluable Stmt where
+    eval :: Delta -> Stmt -> Either ErrMsg Delta
     eval dlt Nop             = Right dlt
     eval dlt (Assign x e)    = do
         c <- evalExp dlt e
@@ -70,7 +82,13 @@ instance Evaluable Stmt where
                 | otherwise -> eval dlt el
     eval dlt (Ret x)        = Right dlt
     -- Lab 2 Task 1.2 
-    eval dlt (While cond s) = undefined -- fixme
+    eval dlt (While cond s) = do
+        c <- evalExp dlt cond 
+        case c of 
+            IntConst _      -> Left "int expression found in the while condition position."
+            BoolConst b
+                | b         -> eval dlt (s ++ [(While cond s)])
+                | otherwise -> Right dlt
     -- Lab 2 Task 1.2 end 
 
 

@@ -241,6 +241,7 @@ pLThanLE = do
 pNIL :: Parser PEnv ExpLEP
 pNIL = empty NIL
 
+fromExpLE :: ExpLE -> Exp
 fromExpLE (VarExpLE x expP) = fromExpLEP (VarExp x) expP 
 fromExpLE (ConstExpLE c expP) = fromExpLEP (ConstExp c) expP
 fromExpLE (ParenExpLE e expP) = fromExpLEP (ParenExp (fromExpLE e)) expP
