@@ -99,10 +99,24 @@ instance Infer Stmt where
             (exTy, k) -> DS.insert (alphax, exTy) k
     infer (Ret x)           = DS.empty 
     -- Lab 2 Task 2.3
-    infer (While cond b)    = undefined -- fixme 
-    infer (If cond th el)   = undefined -- fixme
+    -- While condition
+    infer (While condition body) = 
+        let 
+            (condType, condConstrs) = inferExp condition
+            condBoolConstraint = DS.singleton (condType, MonoType BoolTy) -- Create an entry of set
+            bodyConstrs = infer body
+        in 
+            DS.union condBoolConstraint (DS.union condConstrs bodyConstrs)
+    -- If condition
+    infer (If condition thenBranch elseBranch) = 
+        let 
+            (condType, condConstrs) = inferExp condition
+            condBoolConstraint = DS.singleton (condType, MonoType BoolTy)
+            thenBranchConstrs = infer thenBranch
+            elseBranchConstrs = infer elseBranch
+        in 
+            DS.union condBoolConstraint (DS.union condConstrs (DS.union thenBranchConstrs elseBranchConstrs))
     -- Lab 2 Task 2.3 end 
-
 
 
 inferExp :: Exp -> (ExType, TypeConstrs)
@@ -149,13 +163,23 @@ class Unifiable a where
 -- | unify two extypes 
 -- Lab 2 Task 2.2 
 instance Unifiable (ExType,ExType) where
-    mgu (exTy1, exTy2) = Left ("error: unable to unify " ++ show exTy1 ++ " with " ++ show exTy2) -- fixme
-
+    mgu :: (ExType, ExType) -> Either String TypeSubst
+    mgu (MonoType IntTy, MonoType IntTy)   = Right Empty
+    mgu (MonoType BoolTy, MonoType BoolTy) = Right Empty
+    mgu (TypeVar s, exTy)                  = Right (singleton s exTy)
+    mgu (exTy, TypeVar s)                  = Right (singleton s exTy)
+    mgu (exTy1, exTy2) = Left ("error: unable to unify " ++ show exTy1 ++ " with " ++ show exTy2)
 
 -- | unifying a list of unifaibles
 instance (Unifiable a, Substitutable a) => Unifiable [a] where
+    mgu :: (Unifiable a, Substitutable a) => [a] -> Either String TypeSubst
     mgu []      = Right Empty 
-    mgu (x:xs)  = undefined -- fixme 
+    mgu (x:xs) = do
+        psi1 <- mgu x
+        let xs' = map (applySubst psi1) xs
+        psi2 <- mgu xs'
+        -- Compose Ψ2 with Ψ1
+        return (compose psi2 psi1)
 -- Lab 2 Task 2.2 end
 
 
