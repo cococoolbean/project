@@ -40,7 +40,7 @@ type E = DM.Map Label [String]
 type P = DM.Map Label SSALabeledInstr
 
 
--- | generatae a raw SSA program from a Peudo Assembly program pa, variables are yet to be renamed. 
+-- | generate a raw SSA program from a Peudo Assembly program pa, variables are yet to be renamed. 
 insertPhis :: [LabeledInstr] -> DFTable -> CFG -> P
 insertPhis pa dft g =
         -- a list of pairs. Each pair consists of a label l and the set of variables that are modified in l
@@ -48,13 +48,29 @@ insertPhis pa dft g =
         labelsModdedVars = map modVars pa
         -- Lab 3 Task 1.2 TODO 
         e :: E
-        e = undefined -- fixme
+        e = foldl go DM.empty labelsModdedVars
+            where
+                go :: E -> (Label, [String]) -> E
+                go acc (l, var) =
+                    -- Compute DF+ for the current label `l`
+                    let dfPlusLabels = dfPlus dft l
+                    in foldl (\m f ->
+                                -- Insert the variable `var` into the list for label `f`
+                                DM.insertWith (\new old -> nub (old ++ new)) f var m
+                    ) acc dfPlusLabels
         -- Lab 3 Task 1.2 TODO 
         paWithPhis :: [SSALabeledInstr]
         paWithPhis = map (\ (l,i) -> case DM.lookup l e of
             { Nothing   -> (l, [], i)
             ; Just vars ->
-                let phis = undefined -- fixme
+                let phis = 
+                        -- For each variable `x` in `vars`, create a phi assignment
+                        map (\x ->
+                            PhiAssignment
+                                (Temp (AVar x)) -- LHS (the variable being assigned)
+                                [(k, AVar x) | k <- predecessors g l] -- Operand list, one per predecessor
+                                (Temp (AVar x)) -- Stem (the original variable)
+                        ) vars
                 in (l, phis, i)
             }) pa
         -- Lab 3 Task 1.2 END
