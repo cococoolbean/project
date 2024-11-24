@@ -56,7 +56,7 @@ insertPhis pa dft g =
                     let dfPlusLabels = dfPlus dft l
                     in foldl (\m f ->
                                 -- Insert the variable `var` into the list for label `f`
-                                DM.insertWith (\new old -> nub (old ++ new)) f var m
+                                DM.insertWith (\new old -> sort (nub (old ++ new))) f var m
                     ) acc dfPlusLabels
         -- Lab 3 Task 1.2 TODO 
         paWithPhis :: [SSALabeledInstr]
