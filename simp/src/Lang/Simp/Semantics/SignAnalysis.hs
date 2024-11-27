@@ -62,14 +62,45 @@ genMonotoneFunction p =
         instrState acc (label, IMove (Temp (AVar t)) src) = do 
             let joinedPredsStates = joinPredStates label acc
             sign <- getOprSign joinedPredsStates src
-            return (DM.insert label (DM.insert t sign joinedPredsStates ) acc)
+            return (DM.insert label (DM.insert t sign joinedPredsStates) acc)
         -- Cohort Problem 10 Exercise 3 TODO 
         -- ^ case l: t <- src1 op src2:  s_l = join(s_l)[t -> join(s_l)(src1) abs(op) join(s_l)(src1)]
+        instrState acc (label, IPlus (Temp (AVar t)) src1 src2) = do
+            let joinedPredsStates = joinPredStates label acc
+            sign1 <- getOprSign joinedPredsStates src1
+            sign2 <- getOprSign joinedPredsStates src2
+            let resultSign = absPlus sign1 sign2
+            return (DM.insert label (DM.insert t resultSign joinedPredsStates) acc)
+        instrState acc (label, IMinus (Temp (AVar t)) src1 src2) = do
+            let joinedPredsStates = joinPredStates label acc
+            sign1 <- getOprSign joinedPredsStates src1
+            sign2 <- getOprSign joinedPredsStates src2
+            let resultSign = absMinus sign1 sign2
+            return (DM.insert label (DM.insert t resultSign joinedPredsStates) acc) 
+        instrState acc (label, IMult (Temp (AVar t)) src1 src2) = do
+            let joinedPredsStates = joinPredStates label acc
+            sign1 <- getOprSign joinedPredsStates src1
+            sign2 <- getOprSign joinedPredsStates src2
+            let resultSign = absMult sign1 sign2
+            return (DM.insert label (DM.insert t resultSign joinedPredsStates) acc) 
+        instrState acc (label, IDEqual (Temp (AVar t)) src1 src2) = do
+            let joinedPredsStates = joinPredStates label acc
+            sign1 <- getOprSign joinedPredsStates src1
+            sign2 <- getOprSign joinedPredsStates src2
+            let resultSign = absDEqual sign1 sign2
+            return (DM.insert label (DM.insert t resultSign joinedPredsStates) acc)  
+        instrState acc (label, ILThan (Temp (AVar t)) src1 src2) = do
+            let joinedPredsStates = joinPredStates label acc
+            sign1 <- getOprSign joinedPredsStates src1
+            sign2 <- getOprSign joinedPredsStates src2
+            let resultSign = absLThan sign1 sign2
+            return (DM.insert label (DM.insert t resultSign joinedPredsStates) acc)  
         -- ^ other cases: s_l = join(s_l)
-        instrState acc (label, _) = undefined -- fixme     
+        instrState acc (label, _) = do
+            let joinedPredsStates = joinPredStates label acc
+            return (DM.insert label joinedPredsStates acc)
         -- Cohort Problem 10 Exercise 3 END 
-    in \absEnv -> foldM instrState absEnv p
-
+    in \absEnv -> foldM instrState absEnv p -- foldM :: Monad m => (a -> b -> m a) -> a -> [b] -> m a
 
 
 -- | abstraction of binary operator +

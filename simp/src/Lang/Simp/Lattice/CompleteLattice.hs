@@ -9,7 +9,7 @@ import qualified Data.Map as DM
 -- |   x `sqsubseteq` y == True iff x is below y in the lattice
 -- |   x `sqsubseteq` y == False iff x is not below y in the lattice
 -- | lub : s -> s -> s  returns the least upper bound, also known as the join
--- | glb : s -> s -> s  returns the greatest lower bound (not implemented), also known as the meat
+-- | glb : s -> s -> s  returns the greatest lower bound (not implemented), also known as the meet
 class CompleteLattice s where
     sqSubsetEq  :: s -> s -> Bool 
     lub         :: s -> s -> s 
