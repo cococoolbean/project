@@ -266,7 +266,10 @@ convertInstr m (li:lis) = case li of
                             [ if (wis1 `lt` wis2) { loop { wis3;  wis1 `lt` wis 2; brIf 0 } } else { nop } ] + wis4
                 -}
                 Just (IGoto l4) | l4 == l1 -> case splitAtLbl l3 lis' of
-                    (lis1, lis2) -> undefined -- fixme 
+                    (lis1, lis2) -> do
+                        while (convertSrcOpr m s1 `lt_s` convertSrcOpr m s2) $ do
+                            { convertInstr m lis1 ; return () }
+                        convertInstr m lis2 
                 {-        
                         (l3-1):goto l4 \in lis'      l4 /= l1
                         lis1, lis2 = split(l3, lis') 
@@ -287,7 +290,13 @@ convertInstr m (li:lis) = case li of
                         M |- l1: t <- s1 < s2; l2 ; ifn t goto l3; lis' => 
                             [ if (wis1 `lt` wis2) { wis3 } else { wis4 } ] + wis5
                 -}
-                                | otherwise -> undefined -- fixme 
+                                | otherwise -> case splitAtLbl l3 lis' of
+                    (lis1, lis2) -> case splitAtLbl l4 lis2 of
+                        (lis3, lis4) -> do
+                            if' () (convertSrcOpr m s1 `lt_s` convertSrcOpr m s2)
+                                ( do { convertInstr m lis1 ; return () })
+                                ( do { convertInstr m lis3 ; return () })
+                            convertInstr m lis4
                 -- Lab 3 Task 3 end                 
                 Just _ -> error $ "convertInstr failed: the labeled instruction before the else branch " ++ show (l3-1) ++  "is not a goto."
                 {-         
