@@ -1,0 +1,60 @@
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('simp-form').addEventListener('submit', async (e) => {
+        e.preventDefault(); // Prevent default form submission
+        const message = document.querySelector('textarea[name="message"]').value;
+
+        try {
+            const response = await fetch('/compile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+
+            const result = await response.json();
+            console.log(result)
+            const logElement = document.getElementById('log'); // Ensure this exists
+
+            // Update content inside <pre>
+            if (logElement) {
+                logElement.textContent = `${result.message}`;
+                logElement.setAttribute('data-wasm-path', result.wasmFile);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            const logElement = document.getElementById('log');
+            if (logElement) {
+                logElement.textContent = 'An error occurred while processing the request.';
+            }
+        }
+    });
+
+    document.getElementById('run-wasm').addEventListener('click', async () => {
+        const wasmPath = document.getElementById('log').getAttribute('data-wasm-path');
+        const wasmInput = document.getElementById('wasm-input').value;
+
+        if (!wasmPath) {
+            const logElement = document.getElementById('log');
+            if (logElement) {
+                logElement.textContent = 'Please compile a Wasm file first!';
+            }
+            return;
+        }
+
+        try {
+            const response = await fetch('/run-wasm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wasmPath, wasmInput })
+            });
+
+            const result = await response.json();
+            document.getElementById('output').textContent = `Wasm Output: ${result.output}`;
+        } catch (error) {
+            console.error('Error:', error);
+            const logElement = document.getElementById('log');
+            if (logElement) {
+                logElement.textContent = 'An error occurred while running the Wasm file.';
+            }
+        }
+    });
+});

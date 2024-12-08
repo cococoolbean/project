@@ -1,0 +1,12 @@
+<div .mainpage>
+    <h1>Compiler Task 4</h1>
+    <form #simp-form>
+        <textarea .formsize name=message placeholder="Enter your SIMP code">
+        <button .button type=submit>Compile
+
+    <div>
+        <input .formsizewasm #wasm-input type=text placeholder="Enter input for Wasm function">
+        <button .button #run-wasm>Run Wasm
+
+    <pre #output>
+    <pre #log>
